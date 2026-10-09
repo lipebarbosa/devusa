@@ -1,233 +1,123 @@
 # DevUsa
 
-**Uma plataforma de e-commerce de moda desenvolvida com foco em arquitetura de software, integridade de dados e confiabilidade das operações comerciais.**
+Plataforma de e-commerce de moda feita com Java e Spring Boot. É um projeto em desenvolvimento, usado para praticar engenharia de backend: modelagem de domínio, controle de estoque, pedidos, pagamentos e testes.
 
-O **DevUsa** é um projeto de e-commerce construído com Java e Spring Boot, concebido para simular os principais processos de uma operação de comércio eletrônico: gerenciamento de catálogo, carrinho de compras, controle de estoque, processamento de pedidos e pagamentos.
+> **Status:** planejamento e fundação. Ainda não há código executável.
 
-O projeto tem como objetivo aplicar boas práticas de engenharia de software na construção de uma aplicação evolutiva, segura e sustentável, priorizando a clareza das regras de negócio, a consistência transacional e a qualidade do código.
+## Objetivo
 
-> **Status:** Em desenvolvimento — fase de planejamento e estruturação inicial.
+**Problema de negócio.** Uma loja de moda que vende online precisa garantir que não vende o que não tem em estoque, que pedido e pagamento nunca ficam inconsistentes e que a equipe consegue operar o dia a dia (estoque, separação, envio). O DevUsa simula essa operação de ponta a ponta.
 
----
+**Objetivo do projeto.** Construir esse sistema de forma incremental, praticando consistência transacional, concorrência, segurança, testes automatizados e documentação de decisões técnicas.
 
-## Sumário
+## Escopo do MVP
 
-* [Visão Geral](#-visão-geral)
-* [Objetivos do Projeto](#-objetivos-do-projeto)
-* [Escopo do MVP](#-escopo-do-mvp)
-* [Perfis e Permissões](#-perfis-e-permissões)
-* [Principais Regras de Negócio](#-principais-regras-de-negócio)
-* [Arquitetura e Organização](#-arquitetura-e-organização)
-* [Tecnologias](#-tecnologias)
-* [Qualidade e Confiabilidade](#-qualidade-e-confiabilidade)
-* [Roadmap](#-roadmap)
-* [Execução Local](#-execução-local)
-* [Contribuição](#-contribuição)
-* [Licença](#-licença)
+Fluxo mínimo de compra:
 
-## 🛍️ Visão Geral
+1. Cliente se cadastra e faz login.
+2. Navega pelo catálogo (busca, filtros, paginação, variantes por tamanho/cor).
+3. Monta o carrinho.
+4. Finaliza a compra (checkout).
+5. Paga (pagamento **simulado**).
+6. Pedido é confirmado e o cliente acompanha o status.
+7. A expedição separa e envia o pedido.
 
-O DevUsa é uma plataforma de comércio eletrônico voltada para o segmento de moda, na qual clientes poderão explorar produtos, selecionar variantes disponíveis, gerenciar seus carrinhos e acompanhar suas compras.
+**Dentro do MVP**
 
-Além da experiência de compra, o sistema deverá contemplar os processos operacionais necessários para administrar produtos, controlar a disponibilidade do estoque, acompanhar pedidos e organizar a expedição.
+- Cadastro e autenticação.
+- Catálogo com variantes, busca, filtros e paginação.
+- Carrinho.
+- Estoque por variante, com reserva temporária durante a compra.
+- Pedidos com estados e histórico.
+- Pagamento simulado.
+- Separação e envio de pedidos.
+- Notificações de eventos do pedido.
+- Indicadores básicos de vendas para o gerente.
 
-O desenvolvimento será conduzido de forma incremental, partindo de um MVP funcional e evoluindo conforme as necessidades técnicas e de negócio identificadas durante a implementação.
+**Fora do MVP**
 
-## 🎯 Objetivos do Projeto
+- Pagamento com provedor real.
+- Recuperação de carrinho abandonado.
+- Outros itens: a definir.
 
-O desenvolvimento do DevUsa busca aplicar conceitos e práticas utilizados na construção de sistemas de backend profissionais.
+## Perfis de usuário
 
-Os principais objetivos são:
+| Perfil | O que faz |
+|---|---|
+| Cliente | Consulta produtos, gerencia o próprio carrinho, compra e acompanha seus pedidos. |
+| Gerente | Consulta indicadores de vendas e acompanha a operação. |
+| Responsável pelo estoque | Gerencia inventário, registra movimentações e acompanha a disponibilidade. |
+| Funcionário de expedição | Vê pedidos liberados e atualiza as etapas de separação e envio. |
 
-* **Modelagem de domínio:** representar adequadamente entidades, relacionamentos, estados e regras de negócio de um e-commerce.
-* **Integridade transacional:** manter a consistência das operações envolvendo pedidos, pagamentos e estoque.
-* **Arquitetura modular:** organizar as responsabilidades do sistema para facilitar manutenção, testes e evolução.
-* **Segurança:** implementar autenticação, autorização e proteção dos recursos da aplicação.
-* **Qualidade de software:** desenvolver testes automatizados e estabelecer critérios de qualidade desde as primeiras etapas.
-* **Confiabilidade operacional:** tratar falhas, concorrência, operações repetidas e situações excepcionais.
-* **Evolução incremental:** construir funcionalidades de forma organizada, documentando decisões técnicas relevantes.
+- **Cadastro de produtos e preços:** responsável a definir.
+- As permissões são aplicadas no backend: cada perfil acessa só o que lhe cabe.
 
-## 📦 Escopo do MVP
+## Regras de negócio iniciais
 
-O MVP (Minimum Viable Product) será desenvolvido para validar o fluxo essencial de compra, desde a descoberta de produtos até a confirmação e o acompanhamento do pedido.
+### Estoque
 
-### Experiência do cliente
+- A disponibilidade é controlada por **variante** do produto.
+- Disponível = quantidade em estoque − reservas ativas. Nunca pode ficar negativo, mesmo com compras simultâneas.
+- Reservar reduz o disponível, mas não dá baixa no estoque. A baixa definitiva acontece quando o pagamento é confirmado.
+- Reserva expirada ou cancelada devolve a quantidade **uma única vez**. Liberar duas vezes não pode alterar o estoque.
 
-* Cadastro e autenticação de usuários.
-* Navegação pelo catálogo de produtos.
-* Busca, filtros e paginação.
-* Visualização de detalhes, preços e variantes dos produtos.
-* Gerenciamento do carrinho de compras.
-* Finalização da compra.
-* Acompanhamento do status dos pedidos.
-* Recebimento de notificações relacionadas às compras.
+### Pedidos e pagamentos
 
-### Operações comerciais
+- O pedido tem estados explícitos. Uma transição inválida é rejeitada. Estados: a definir.
+- Pedido aguardando pagamento expira em **[prazo a definir]**. Ao expirar, o pedido é cancelado e a reserva é liberada.
+- Confirmar o mesmo pagamento mais de uma vez tem o mesmo efeito de confirmar uma vez (idempotência).
+- Pagamento recusado: o que acontece com o pedido e com a reserva é a definir.
+- Mudanças de estado do pedido são registradas (o que mudou e quando).
 
-* Gerenciamento de produtos e suas variantes.
-* Controle de disponibilidade e movimentações de estoque.
-* Criação e gerenciamento de pedidos.
-* Reserva temporária de estoque durante o processo de compra.
-* Integração inicial com um mecanismo de pagamento simulado.
-* Liberação de reservas em situações de expiração ou falha.
-* Consulta de indicadores básicos de vendas e pedidos.
-* Organização dos pedidos para separação e expedição.
+### Carrinho e checkout
 
-**Limite inicial:** o processamento de pagamentos será simulado durante o MVP. Uma integração com um provedor real poderá ser considerada em uma etapa futura, após a definição dos requisitos de segurança e operação.
+- O backend calcula o total. Preços enviados pelo cliente são ignorados.
+- Preço e disponibilidade são revalidados no checkout.
+- O pedido guarda o nome e o preço do item no momento da compra (a confirmar).
+- Carrinhos abandonados expiram por rotina. A recuperação fica para o futuro.
 
-## 👥 Perfis e Permissões
+### Notificações
 
-A aplicação deverá utilizar controle de acesso baseado nas responsabilidades de cada perfil.
+- Eventos relevantes (pagamento confirmado, cancelamento, mudança de status) geram notificação.
+- Falha no envio de notificação **não** desfaz nem bloqueia o pedido.
+- Canal de envio e política de nova tentativa: a definir.
 
-| Perfil                   | Responsabilidades                                                                             |
-| ------------------------ | --------------------------------------------------------------------------------------------- |
-| Cliente                  | Consultar produtos, gerenciar o próprio carrinho, realizar compras e acompanhar seus pedidos. |
-| Gerente                  | Consultar indicadores de vendas e acompanhar a operação comercial.                            |
-| Responsável pelo estoque | Gerenciar inventário, registrar movimentações e acompanhar a disponibilidade dos produtos.    |
-| Funcionário de expedição | Consultar pedidos liberados para processamento e atualizar as etapas de separação e envio.    |
+## Decisões em aberto
 
-As permissões deverão ser aplicadas no backend, garantindo que cada usuário acesse apenas os recursos e as operações autorizados para seu perfil.
+- Em que momento começa a reserva de estoque: ao iniciar o checkout ou ao criar o pedido.
+- Prazo de expiração do pedido aguardando pagamento.
+- Estados do pedido e transições permitidas.
+- Destino do pedido e da reserva quando o pagamento é recusado.
+- Quem cadastra produtos e preços.
+- Tipo de autenticação (token, sessão etc.).
+- Licença do projeto.
+- Ferramenta de integração contínua.
 
-## ⚖️ Principais Regras de Negócio
+## Em desenvolvimento
 
-As regras abaixo representam a definição inicial do domínio e serão refinadas durante a implementação.
+- Primeira versão do README e das definições de domínio.
+- Próximo passo: desenhar o fluxo de checkout e os estados do pedido.
 
-### 1. Gestão de estoque
+## Roadmap
 
-* A disponibilidade deverá ser controlada por variante do produto, considerando características como tamanho e cor quando aplicáveis.
-* O sistema deverá impedir que compras concorrentes comprometam a quantidade disponível.
-* A reserva deverá reduzir a quantidade disponível para novas compras sem representar, necessariamente, uma saída definitiva do inventário.
-* A baixa definitiva deverá ocorrer conforme a transição de estado definida para a confirmação do pagamento.
-* Reservas expiradas ou canceladas deverão liberar a quantidade correspondente, evitando duplicidade de liberação.
-
-### 2. Pedidos e pagamentos
-
-* Um pedido deverá possuir estados explícitos e transições controladas.
-* Pedidos aguardando pagamento deverão possuir um prazo de expiração definido.
-* A confirmação do pagamento deverá atualizar o estado do pedido e acionar os processos necessários para consolidar a compra.
-* Pagamentos recusados, expirados ou cancelados deverão seguir fluxos específicos de tratamento.
-* Operações repetidas de confirmação deverão ser tratadas de maneira idempotente, evitando efeitos duplicados.
-* O histórico de alterações relevantes deverá permitir rastrear o ciclo de vida do pedido.
-
-### 3. Carrinho e checkout
-
-* O carrinho deverá refletir os itens selecionados pelo cliente.
-* A disponibilidade do estoque e os preços deverão ser validados novamente durante a finalização da compra.
-* O backend deverá calcular os valores da compra, sem confiar em preços enviados pelo cliente.
-* A criação do pedido deverá considerar a disponibilidade dos produtos e as condições comerciais vigentes.
-* Carrinhos abandonados poderão ser tratados por rotinas de expiração e, futuramente, por mecanismos de recuperação.
-
-### 4. Notificações
-
-* O sistema deverá identificar eventos relevantes, como confirmação de pagamento, cancelamento e atualização do pedido.
-* As notificações não deverão comprometer a integridade das operações comerciais caso um serviço de envio fique indisponível.
-* O canal de envio e as estratégias de retentativa serão definidos durante a implementação.
-
-## 🏗️ Arquitetura e Organização
-
-O DevUsa será desenvolvido com uma arquitetura modular, buscando separar as responsabilidades do sistema e manter as regras de negócio organizadas.
-
-A divisão inicial de responsabilidades considera os seguintes módulos:
-
-| Módulo         | Responsabilidade                                                 |
-| -------------- | ---------------------------------------------------------------- |
-| `Identity`     | Autenticação, usuários, perfis e autorização.                    |
-| `Catalog`      | Produtos, categorias, variantes, preços e consultas ao catálogo. |
-| `Cart`         | Gerenciamento do carrinho e dos itens selecionados.              |
-| `Inventory`    | Disponibilidade, reservas e movimentações de estoque.            |
-| `Order`        | Criação, ciclo de vida e histórico dos pedidos.                  |
-| `Payment`      | Processamento simulado e controle do estado dos pagamentos.      |
-| `Notification` | Comunicação de eventos relevantes ao cliente.                    |
-
-Essa divisão representa uma proposta inicial de organização lógica, não uma definição de que cada módulo será um microsserviço independente.
-
-A arquitetura física e a estratégia de implantação serão definidas conforme as necessidades do produto, evitando complexidade prematura.
-
-As decisões arquiteturais relevantes poderão ser registradas por meio de ADRs (*Architecture Decision Records*), documentando o contexto, as alternativas consideradas e os motivos de cada escolha.
-
-## 🧰 Tecnologias
-
-A stack será consolidada progressivamente durante a fase de implementação.
-
-| Categoria                 | Tecnologia ou abordagem                 |
-| ------------------------- | --------------------------------------- |
-| Linguagem                 | Java                                    |
-| Framework backend         | Spring Boot                             |
-| Persistência              | Spring Data JPA / Hibernate             |
-| Banco de dados relacional | PostgreSQL                              |
-| Versionamento de banco    | Flyway                                  |
-| Segurança                 | Spring Security                         |
-| Autenticação              | A definir conforme os requisitos do MVP |
-| Testes automatizados      | JUnit 5 e Mockito                       |
-| Build e dependências      | Maven                                   |
-| Versionamento de código   | Git e GitHub                            |
-| Containerização           | Docker e Docker Compose                 |
-| Integração contínua       | A definir durante a implementação       |
-
-As versões das ferramentas, as dependências e as configurações de ambiente serão documentadas conforme forem estabelecidas no projeto.
-
-## 🧪 Qualidade e Confiabilidade
-
-A qualidade será tratada como parte do processo de desenvolvimento, e não como uma etapa posterior.
-
-Os principais critérios incluem:
-
-* Testes unitários para regras de negócio.
-* Testes de integração para persistência e fluxos críticos.
-* Validação das transições de estado de pedidos e pagamentos.
-* Testes de concorrência nos processos sensíveis de estoque.
-* Tratamento consistente de erros e respostas da API.
-* Validação de entradas e proteção dos recursos autenticados.
-* Automação de verificações por meio de integração contínua.
-* Documentação dos contratos da API e das decisões arquiteturais.
-
-A cobertura de testes será acompanhada como uma métrica auxiliar. A prioridade será garantir que os cenários críticos e as regras de negócio estejam efetivamente validados.
-
-## 🗺️ Roadmap
-
-O desenvolvimento será dividido em etapas para manter o escopo controlado e facilitar a validação de cada entrega.
-
-* [ ] **Fase 1 — Fundação:** estrutura do projeto, configuração do ambiente, convenções e documentação inicial.
-* [ ] **Fase 2 — Identidade:** autenticação, usuários e controle de permissões.
-* [ ] **Fase 3 — Catálogo:** cadastro, consulta, busca e paginação de produtos.
-* [ ] **Fase 4 — Carrinho:** gerenciamento de itens e validação de quantidades.
-* [ ] **Fase 5 — Estoque:** disponibilidade, reservas e controle de concorrência.
-* [ ] **Fase 6 — Pedidos:** criação, estados, histórico e regras do ciclo de vida.
-* [ ] **Fase 7 — Pagamentos:** simulação de pagamentos, idempotência e expiração de pedidos.
-* [ ] **Fase 8 — Notificações:** comunicação de eventos e tratamento de falhas.
-* [ ] **Fase 9 — Qualidade:** ampliação dos testes, documentação da API e pipeline de CI.
-* [ ] **Fase 10 — Evolução:** melhorias operacionais, observabilidade e avaliação de implantação em nuvem.
-
-O roadmap poderá ser ajustado conforme os aprendizados e as dependências identificadas durante o desenvolvimento.
-
-## 🚀 Execução Local
-
-O projeto está em fase inicial e ainda não possui um procedimento de execução local consolidado.
-
-Quando a configuração estiver disponível, esta seção documentará:
-
-1. Pré-requisitos e versões necessárias.
-2. Configuração das variáveis de ambiente.
-3. Inicialização dos serviços dependentes.
-4. Execução das migrações do banco de dados.
-5. Inicialização da aplicação.
-6. Execução dos testes automatizados.
-7. Endereços da API e da documentação interativa.
-
-Credenciais, tokens e outros segredos deverão ser fornecidos por variáveis de ambiente, sem serem versionados no repositório.
-
-## 🤝 Contribuição
-
-O DevUsa é desenvolvido de forma incremental, com foco em aprendizado aplicado e boas práticas de engenharia de software.
-
-Sugestões de melhoria, identificação de problemas e discussões sobre decisões técnicas são bem-vindas.
-
-Mudanças futuras deverão priorizar clareza, consistência com as regras de negócio, cobertura de testes e simplicidade arquitetural.
-
-## 📄 Licença
-
-A licença do projeto será definida antes de sua distribuição pública como software reutilizável.
-
----
-
-**DevUsa** — desenvolvendo uma plataforma de e-commerce enquanto aplico, na prática, os fundamentos da engenharia de software.
+1. **Fundação:** estrutura do projeto, ambiente, convenções.
+2. **Identidade:** cadastro, login e permissões.
+3. **Catálogo:** produtos, variantes, busca, filtros e paginação.
+4. **Estoque:** disponibilidade, reservas e controle de concorrência.
+5. **Carrinho:** itens e validação de disponibilidade.
+6. **Pedidos:** criação, estados e histórico.
+7. **Pagamentos:** simulação, idempotência e expiração de pedidos.
+8. **Expedição:** separação e envio.
+9. **Notificações e indicadores.**
+10. **Qualidade:** ampliação de testes, documentação da API e CI.
+11. **Evolução:** observabilidade e avaliação de implantação em nuvem.
+
+A ordem pode mudar conforme o aprendizado durante a implementação.
+
+## Stack prevista (ainda não confirmada)
+
+Java, Spring Boot, Spring Data JPA, PostgreSQL, Flyway, Spring Security, JUnit 5 e Mockito, Maven, Docker.
+
+## Licença
+
+Ainda não definida. Até lá, nenhuma permissão de uso ou redistribuição é concedida.
