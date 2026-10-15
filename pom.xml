@@ -11,21 +11,8 @@
 	<groupId>com.devusa</groupId>
 	<artifactId>devusa</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+	<name>devusa</name>
+	<description>Plataforma de e-commerce de moda feita com Java e Spring Boot. É um projeto em desenvolvimento, usado para praticar engenharia de backend: modelagem de domínio, controle de estoque, pedidos, pagamentos e testes.</description>
 	<properties>
 		<java.version>21</java.version>
 	</properties>
