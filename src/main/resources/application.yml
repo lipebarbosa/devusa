@@ -1,4 +1,6 @@
 spring:
+  application:
+    name: devusa
   config:
     import: optional:file:.env[.properties]
   datasource:
