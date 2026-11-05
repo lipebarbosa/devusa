@@ -17,6 +17,13 @@ public enum OrderStatus {
     }
 
     public boolean canTransitionTo(OrderStatus nextStatus) {
-        return this == AGUARDANDO_PAGAMENTO && nextStatus == PAGO;
+        return switch (this) {
+            case AGUARDANDO_PAGAMENTO ->
+                    nextStatus == PAGO || nextStatus == CANCELADO || nextStatus == EXPIRADO;
+            case PAGO -> nextStatus == EM_SEPARACAO;
+            case EM_SEPARACAO -> nextStatus == ENVIADO;
+            case ENVIADO -> nextStatus == ENTREGUE;
+            case ENTREGUE, CANCELADO, EXPIRADO -> false;
+        };
     }
 }
