@@ -52,6 +52,13 @@ Fluxo mínimo de compra:
 - **Cadastro de produtos e preços:** responsável a definir.
 - As permissões são aplicadas no backend: cada perfil acessa só o que lhe cabe.
 
+### Decisões de identidade
+
+- Cada usuário tem um único perfil: `CLIENTE`, `GERENTE`, `ESTOQUE` ou `EXPEDICAO`. O cadastro público sempre cria `CLIENTE` e ignora qualquer perfil enviado pelo cliente; contas de equipe são provisionadas por um fluxo administrativo protegido.
+- A unicidade de e-mail não diferencia maiúsculas de minúsculas, garantida pelo índice no banco. A aplicação deve persistir e-mails normalizados em minúsculas.
+- A aplicação gera os UUIDs e preenche `updated_at` na criação e em cada atualização; `created_at` é gerado pelo banco.
+- O Actuator está configurado com `show-details: always` para desenvolvimento; ao adicionar Spring Security, restringir o acesso ou ocultar os detalhes.
+
 ## Regras de negócio iniciais
 
 ### Estoque
