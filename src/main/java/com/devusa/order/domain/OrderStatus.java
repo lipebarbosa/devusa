@@ -15,4 +15,8 @@ public enum OrderStatus {
             case AGUARDANDO_PAGAMENTO, PAGO, EM_SEPARACAO, ENVIADO -> false;
         };
     }
+
+    public boolean canTransitionTo(OrderStatus nextStatus) {
+        return this == AGUARDANDO_PAGAMENTO && nextStatus == PAGO;
+    }
 }
