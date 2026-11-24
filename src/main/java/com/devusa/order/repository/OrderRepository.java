@@ -18,3 +18,4 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     @EntityGraph(attributePaths = {"items"})
     List<Order> findTop10ByOrderByCreatedAtDesc();
 }
+
