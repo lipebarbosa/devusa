@@ -1,130 +1,108 @@
-# DevUsa
+# DevUsa — Plataforma E-commerce & Showcase de Arquitetura
 
-Plataforma de e-commerce de moda feita com Java e Spring Boot. É um projeto em desenvolvimento, usado para praticar engenharia de backend: modelagem de domínio, controle de estoque, pedidos, pagamentos e testes.
+[![Build & Test](https://github.com/SEU_USUARIO/devusa/actions/workflows/ci.yml/badge.svg)](https://github.com/SEU_USUARIO/devusa/actions)
+![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen?logo=springboot)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-blue?logo=postgresql)
+![React](https://img.shields.io/badge/Frontend-React%20%2B%20TypeScript-61DAFB?logo=react)
+![Architecture](https://img.shields.io/badge/Architecture-Modular%20Monolith-blueviolet)
 
-> **Status:** planejamento e fundação. Ainda não há código executável.
+> Plataforma completa de comércio eletrônico de moda desenvolvida como **projeto de portfólio de engenharia de software**. Combina uma experiência visual minimalista de e-commerce contemporâneo com um **System Inspector ("Modo Engenheiro")** integrado que expõe em tempo real o funcionamento dos Bounded Contexts, concorrência de estoque e máquina de estados.
 
-## Objetivo
+---
 
-**Problema de negócio.** Uma loja de moda que vende online precisa garantir que não vende o que não tem em estoque, que pedido e pagamento nunca ficam inconsistentes e que a equipe consegue operar o dia a dia (estoque, separação, envio). O DevUsa simula essa operação de ponta a ponta.
+## 🏛️ Visão Geral da Arquitetura
 
-**Objetivo do projeto.** Construir esse sistema de forma incremental, praticando consistência transacional, concorrência, segurança, testes automatizados e documentação de decisões técnicas.
+O projeto foi construído sobre o padrão **Monólito Modular**, garantindo alto desacoplamento e isolamento de domínio com validação contínua via **ArchUnit**:
 
-## Escopo do MVP
+```mermaid
+graph TD
+    Client["Frontend (React + Vite)"] --> Gateway["API Gateway / Security Filter (JWT Stateless)"]
+    
+    subgraph "Monólito Modular (Spring Boot 3 / Java 21)"
+        Gateway --> Identity["Identity Context\n(Auth, Roles, Refresh Token SHA-256)"]
+        Gateway --> Catalog["Catalog Context\n(Products, Categories, SKUs)"]
+        Gateway --> Inventory["Inventory Context\n(Lock Pessimista & Version Otimista)"]
+        Gateway --> Order["Order Context\n(Hexagonal & Finite State Machine)"]
+    end
+    
+    Identity --> DB[(PostgreSQL 18)]
+    Catalog --> DB
+    Inventory --> DB
+    Order --> DB
+```
 
-Fluxo mínimo de compra:
+---
 
-1. Cliente se cadastra e faz login.
-2. Navega pelo catálogo (busca, filtros, paginação, variantes por tamanho/cor).
-3. Monta o carrinho.
-4. Finaliza a compra (checkout).
-5. Paga (pagamento **simulado**).
-6. Pedido é confirmado e o cliente acompanha o status.
-7. A expedição separa e envia o pedido.
+## 🔑 Diferenciais Técnicos Implementados
 
-**Dentro do MVP**
+1. **Controle Estrito de Concorrência no Estoque:**
+   - Reserva de estoque atômica com lock pessimista (`SELECT ... FOR UPDATE`) e controle otimista via `@Version`.
+   - Garantia formal de que o estoque disponível nunca fica negativo, mesmo sob alta concorrência de checkout.
+2. **Máquina de Estados Finita (Order FSM):**
+   - Estados: `AGUARDANDO_PAGAMENTO` → `PAGO` → `EM_SEPARACAO` → `ENVIADO` → `ENTREGUE` (com saídas controladas `CANCELADO` e `EXPIRADO`).
+   - Validação estrita de transição no modelo de domínio puro (`OrderStatus.canTransitionTo`).
+3. **Segurança & Tokens:**
+   - Access tokens JWT stateless de curta duração (15 minutos).
+   - Refresh tokens persistidos no banco de dados com **hashing SHA-256** e **rotação obrigatória** a cada renovação para combater replay attacks.
+   - RBAC granular (`CLIENTE`, `GERENTE`, `ESTOQUE`, `EXPEDICAO`).
+4. **Idempotência no Checkout:**
+   - Cabeçalho / campo `idempotencyKey` obrigatório na finalização de compra para evitar pedidos duplicados por múltiplos cliques.
+5. **System Inspector ("Modo Engenheiro"):**
+   - Gaveta flutuante no frontend que permite a qualquer recrutador ou avaliador acompanhar o log de eventos de domínio e acionar transições de estados ao vivo.
 
-- Cadastro e autenticação.
-- Catálogo com variantes, busca, filtros e paginação.
-- Carrinho.
-- Estoque por variante, com reserva temporária durante a compra.
-- Pedidos com estados e histórico.
-- Pagamento simulado.
-- Separação e envio de pedidos.
-- Notificações de eventos do pedido.
-- Indicadores básicos de vendas para o gerente.
+---
 
-**Fora do MVP**
+## 📂 Estrutura de Bounded Contexts
 
-- Pagamento com provedor real.
-- Recuperação de carrinho abandonado.
-- Outros itens: a definir.
+```text
+com.devusa/
+├── identity/       # Autenticação, usuários, JWT, rotação de refresh token e RBAC
+├── catalog/        # Produtos, categorias, variações (tamanho/cor), SKUs e precificação
+├── inventory/      # Itens de estoque, reservas temporárias e controle de concorrência
+├── order/          # Pedidos, itens de compra, máquina de estados e fluxo de checkout
+└── shared/         # Value objects e utilitários transversais
+```
 
-## Perfis de usuário
+---
 
-| Perfil | O que faz |
-|---|---|
-| Cliente | Consulta produtos, gerencia o próprio carrinho, compra e acompanha seus pedidos. |
-| Gerente | Consulta indicadores de vendas e acompanha a operação. |
-| Responsável pelo estoque | Gerencia inventário, registra movimentações e acompanha a disponibilidade. |
-| Funcionário de expedição | Vê pedidos liberados e atualiza as etapas de separação e envio. |
+## 🚀 Como Executar Localmente
 
-- **Cadastro de produtos e preços:** responsável a definir.
-- As permissões são aplicadas no backend: cada perfil acessa só o que lhe cabe.
+### Pré-requisitos
+* Java 21 (JDK 21)
+* Node.js 20+
+* Docker & Docker Compose (opcional para rodar com Postgres local)
 
-### Decisões de identidade
+### 1. Iniciar o Backend
+```powershell
+# Subir o banco Postgres via Docker
+docker compose up -d postgres
 
-- Cada usuário tem um único perfil: `CLIENTE`, `GERENTE`, `ESTOQUE` ou `EXPEDICAO`. O cadastro público sempre cria `CLIENTE` e ignora qualquer perfil enviado pelo cliente; contas de equipe são provisionadas por um fluxo administrativo protegido.
-- A unicidade de e-mail não diferencia maiúsculas de minúsculas, garantida pelo índice no banco. A aplicação deve persistir e-mails normalizados em minúsculas.
-- A aplicação gera os UUIDs e preenche `updated_at` na criação e em cada atualização; `created_at` é gerado pelo banco.
-- O Actuator está configurado com `show-details: always` para desenvolvimento; ao adicionar Spring Security, restringir o acesso ou ocultar os detalhes.
+# Executar a aplicação Spring Boot
+./mvnw spring-boot:run
+```
+*A API estará disponível em `http://localhost:8080` com Flyway executando as migrações automaticamente.*
 
-## Regras de negócio iniciais
+### 2. Iniciar o Frontend
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+*Acesse no navegador: `http://localhost:5173`.*
 
-### Estoque
+---
 
-- A disponibilidade é controlada por **variante** do produto.
-- Disponível = quantidade em estoque − reservas ativas. Nunca pode ficar negativo, mesmo com compras simultâneas.
-- Reservar reduz o disponível, mas não dá baixa no estoque. A baixa definitiva acontece quando o pagamento é confirmado.
-- Reserva expirada ou cancelada devolve a quantidade **uma única vez**. Liberar duas vezes não pode alterar o estoque.
+## 🧪 Suíte de Testes Automatizados
+```powershell
+./mvnw clean test
+```
+* Inclui testes de máquina de estados, regras de concorrência de inventário, hashing e rotação de tokens, além de verificação de governança modular com **ArchUnit**.
 
-### Pedidos e pagamentos
+---
 
-- O pedido tem estados explícitos. Uma transição inválida é rejeitada. Estados: a definir.
-- Pedido aguardando pagamento expira em **[prazo a definir]**. Ao expirar, o pedido é cancelado e a reserva é liberada.
-- Confirmar o mesmo pagamento mais de uma vez tem o mesmo efeito de confirmar uma vez (idempotência).
-- Pagamento recusado: o que acontece com o pedido e com a reserva é a definir.
-- Mudanças de estado do pedido são registradas (o que mudou e quando).
-
-### Carrinho e checkout
-
-- O backend calcula o total. Preços enviados pelo cliente são ignorados.
-- Preço e disponibilidade são revalidados no checkout.
-- O pedido guarda o nome e o preço do item no momento da compra (a confirmar).
-- Carrinhos abandonados expiram por rotina. A recuperação fica para o futuro.
-
-### Notificações
-
-- Eventos relevantes (pagamento confirmado, cancelamento, mudança de status) geram notificação.
-- Falha no envio de notificação **não** desfaz nem bloqueia o pedido.
-- Canal de envio e política de nova tentativa: a definir.
-
-## Decisões em aberto
-
-- Em que momento começa a reserva de estoque: ao iniciar o checkout ou ao criar o pedido.
-- Prazo de expiração do pedido aguardando pagamento.
-- Estados do pedido e transições permitidas.
-- Destino do pedido e da reserva quando o pagamento é recusado.
-- Quem cadastra produtos e preços.
-- Tipo de autenticação (token, sessão etc.).
-- Licença do projeto.
-- Ferramenta de integração contínua.
-
-## Em desenvolvimento
-
-- Primeira versão do README e das definições de domínio.
-- Próximo passo: desenhar o fluxo de checkout e os estados do pedido.
-
-## Roadmap
-
-1. **Fundação:** estrutura do projeto, ambiente, convenções.
-2. **Identidade:** cadastro, login e permissões.
-3. **Catálogo:** produtos, variantes, busca, filtros e paginação.
-4. **Estoque:** disponibilidade, reservas e controle de concorrência.
-5. **Carrinho:** itens e validação de disponibilidade.
-6. **Pedidos:** criação, estados e histórico.
-7. **Pagamentos:** simulação, idempotência e expiração de pedidos.
-8. **Expedição:** separação e envio.
-9. **Notificações e indicadores.**
-10. **Qualidade:** ampliação de testes, documentação da API e CI.
-11. **Evolução:** observabilidade e avaliação de implantação em nuvem.
-
-A ordem pode mudar conforme o aprendizado durante a implementação.
-
-## Stack prevista (ainda não confirmada)
-
-Java, Spring Boot, Spring Data JPA, PostgreSQL, Flyway, Spring Security, JUnit 5 e Mockito, Maven, Docker.
-
-## Licença
-
-Ainda não definida. Até lá, nenhuma permissão de uso ou redistribuição é concedida.
+## 📑 Decisões de Arquitetura (ADRs)
+* [ADR 001 — Monólito Modular como Arquitetura Inicial](docs/architecture/adr/001-modular-monolith.md)
+* [ADR 002 — Estratégia de Tokens JWT e Refresh Token com Rotação](docs/architecture/adr/002-token-strategy.md)
+* [ADR 003 — Vitrine Fullstack e System Inspector para Portfólio](docs/architecture/adr/003-showcase-and-system-inspector.md)
+* [Guia de Deploy em Produção (Render + Vercel)](docs/DEPLOY.md)
