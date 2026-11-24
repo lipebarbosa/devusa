@@ -57,3 +57,4 @@ export interface SystemEvent {
   details: string;
   status: 'SUCCESS' | 'WARNING' | 'ERROR';
 }
+

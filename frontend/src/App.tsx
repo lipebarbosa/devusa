@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Product, Variant, CartItem, Order, SystemEvent, OrderStatus } from './types';
+import { api } from './api';
 import { 
   ShoppingBag, 
   Terminal, 
@@ -8,11 +9,11 @@ import {
   Layers, 
   Activity, 
   X,
-  Box
+  Box,
+  Server
 } from 'lucide-react';
 
-// Dados estáticos de demonstração inicial com imagens de alta qualidade de moda minimalista
-const DEMO_PRODUCTS: Product[] = [
+const FALLBACK_PRODUCTS: Product[] = [
   {
     id: 'prod-1',
     name: 'Blazer Oversized Lã Fria',
@@ -69,12 +70,13 @@ const DEMO_PRODUCTS: Product[] = [
 ];
 
 export function App() {
-  const [products, setProducts] = useState<Product[]>(DEMO_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>(FALLBACK_PRODUCTS);
+  const [backendConnected, setBackendConnected] = useState(false);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, Variant>>({
-    'prod-1': DEMO_PRODUCTS[0].variants[0],
-    'prod-2': DEMO_PRODUCTS[1].variants[0],
-    'prod-3': DEMO_PRODUCTS[2].variants[0],
-    'prod-4': DEMO_PRODUCTS[3].variants[0],
+    'prod-1': FALLBACK_PRODUCTS[0].variants[0],
+    'prod-2': FALLBACK_PRODUCTS[1].variants[0],
+    'prod-3': FALLBACK_PRODUCTS[2].variants[0],
+    'prod-4': FALLBACK_PRODUCTS[3].variants[0],
   });
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -85,8 +87,8 @@ export function App() {
       id: 'evt-init',
       timestamp: new Date().toLocaleTimeString(),
       module: 'CATALOG',
-      action: 'BOOT_CATALOG',
-      details: 'Módulos Spring Modulith e inventário inicial carregados.',
+      action: 'BOOT_SYSTEM',
+      details: 'Frontend inicializado. Verificando conectividade com o Backend Spring Boot...',
       status: 'SUCCESS'
     }
   ]);
@@ -102,6 +104,24 @@ export function App() {
     };
     setSystemEvents(prev => [newEvt, ...prev.slice(0, 19)]);
   };
+
+  useEffect(() => {
+    async function loadCatalog() {
+      const liveProducts = await api.getProducts();
+      if (liveProducts && liveProducts.length > 0) {
+        setProducts(liveProducts.map((p, idx) => ({
+          ...p,
+          imageUrl: FALLBACK_PRODUCTS[idx % FALLBACK_PRODUCTS.length]?.imageUrl || FALLBACK_PRODUCTS[0].imageUrl
+        })));
+        setBackendConnected(true);
+        addEvent('CATALOG', 'HTTP_GET_PRODUCTS', `Conectado ao Spring Boot API. ${liveProducts.length} produtos carregados via Postgres.`);
+      } else {
+        setBackendConnected(false);
+        addEvent('CATALOG', 'STANDALONE_MODE', 'Backend offline ou iniciando. Operando em modo de demonstração local.', 'WARNING');
+      }
+    }
+    loadCatalog();
+  }, []);
 
   const handleSelectVariant = (productId: string, variant: Variant) => {
     setSelectedVariants(prev => ({ ...prev, [productId]: variant }));
@@ -123,34 +143,46 @@ export function App() {
       return [...prev, { product, variant, quantity: 1 }];
     });
 
-    addEvent('CATALOG', 'ADD_TO_CART', `SKU ${variant.sku} adicionado ao carrinho local.`);
+    addEvent('CATALOG', 'ADD_TO_CART', `SKU ${variant.sku} adicionado à sacola.`);
     setIsCartOpen(true);
   };
 
   const cartTotal = cart.reduce((acc, item) => acc + (item.variant.price * item.quantity), 0);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) return;
 
-    // Simulação do Checkout Atômico com Reserva no Backend
-    const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
-    const newOrder: Order = {
-      id: orderId,
+    const payload = {
       customerName: 'Cliente Visitante',
       customerEmail: 'visitante@devusa.com',
-      status: 'AGUARDANDO_PAGAMENTO',
-      totalAmount: cartTotal,
-      createdAt: new Date().toISOString(),
-      items: cart.map(i => ({
-        variantId: i.variant.id,
-        productName: i.product.name,
-        sku: i.variant.sku,
-        unitPrice: i.variant.price,
-        quantity: i.quantity
-      }))
+      idempotencyKey: 'idemp-' + Math.floor(100000 + Math.random() * 900000),
+      items: cart.map(i => ({ variantId: i.variant.id, quantity: i.quantity }))
     };
 
-    // Atualiza estoque visual diminuindo a reserva
+    let createdOrder: Order | null = null;
+    if (backendConnected) {
+      createdOrder = await api.checkout(payload);
+    }
+
+    if (!createdOrder) {
+      createdOrder = {
+        id: 'ORD-' + Math.floor(100000 + Math.random() * 900000),
+        customerName: payload.customerName,
+        customerEmail: payload.customerEmail,
+        status: 'AGUARDANDO_PAGAMENTO',
+        totalAmount: cartTotal,
+        createdAt: new Date().toISOString(),
+        items: cart.map(i => ({
+          variantId: i.variant.id,
+          productName: i.product.name,
+          sku: i.variant.sku,
+          unitPrice: i.variant.price,
+          quantity: i.quantity
+        }))
+      };
+    }
+
+    // Atualiza o estoque na UI
     setProducts(prev => prev.map(p => ({
       ...p,
       variants: p.variants.map(v => {
@@ -162,7 +194,7 @@ export function App() {
       })
     })));
 
-    setActiveOrder(newOrder);
+    setActiveOrder(createdOrder);
     setCart([]);
     setIsCartOpen(false);
     setIsInspectorOpen(true);
@@ -170,13 +202,23 @@ export function App() {
     addEvent(
       'ORDER', 
       'CHECKOUT_INITIATED', 
-      `Pedido ${orderId} criado. Estoque reservado com expiração de 15min. Total R$ ${cartTotal.toFixed(2)}.`
+      `Pedido ${createdOrder.id} criado com sucesso. Estoque reservado. Total R$ ${cartTotal.toFixed(2)}.`
     );
   };
 
-  const handleAdvanceStatus = (nextStatus: OrderStatus) => {
+  const handleAdvanceStatus = async (nextStatus: OrderStatus) => {
     if (!activeOrder) return;
-    setActiveOrder(prev => prev ? { ...prev, status: nextStatus } : null);
+
+    if (backendConnected) {
+      const updated = await api.transitionOrder(activeOrder.id, nextStatus);
+      if (updated) {
+        setActiveOrder(updated);
+      } else {
+        setActiveOrder(prev => prev ? { ...prev, status: nextStatus } : null);
+      }
+    } else {
+      setActiveOrder(prev => prev ? { ...prev, status: nextStatus } : null);
+    }
 
     if (nextStatus === 'PAGO') {
       addEvent('INVENTORY', 'COMMIT_STOCK', `Pagamento aprovado. Reserva do pedido ${activeOrder.id} convertida em baixa definitiva.`);
@@ -195,6 +237,19 @@ export function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <ShieldCheck size={16} color="#4ade80" />
           <span><strong>DevUsa Architecture Showcase:</strong> Monólito Modular Java 21, Spring Boot 3, Flyway & Postgres</span>
+          <span style={{ 
+            fontSize: '11px', 
+            padding: '2px 8px', 
+            borderRadius: '4px', 
+            backgroundColor: backendConnected ? '#14532d' : '#451a03',
+            color: backendConnected ? '#86efac' : '#fdba74',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            <Server size={12} />
+            {backendConnected ? 'API Conectada' : 'Modo Standalone / Demo'}
+          </span>
         </div>
         <button
           onClick={() => setIsInspectorOpen(!isInspectorOpen)}
@@ -243,7 +298,7 @@ export function App() {
             }}
           >
             <ShoppingBag size={20} />
-            <span>Carrinho ({cart.reduce((a, b) => a + b.quantity, 0)})</span>
+            <span>Sacola ({cart.reduce((a, b) => a + b.quantity, 0)})</span>
           </button>
         </div>
       </header>
@@ -271,12 +326,12 @@ export function App() {
                     alt={product.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
-                  {currentVariant.availableStock <= 3 && currentVariant.availableStock > 0 && (
+                  {currentVariant && currentVariant.availableStock <= 3 && currentVariant.availableStock > 0 && (
                     <span style={{ position: 'absolute', top: '12px', left: '12px', backgroundColor: '#111', color: '#FFF', fontSize: '10px', padding: '4px 8px', letterSpacing: '1px', textTransform: 'uppercase' }}>
                       Resta apenas {currentVariant.availableStock} un
                     </span>
                   )}
-                  {currentVariant.availableStock === 0 && (
+                  {currentVariant && currentVariant.availableStock === 0 && (
                     <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '13px', letterSpacing: '1px' }}>
                       ESGOTADO NO ESTOQUE
                     </div>
@@ -286,7 +341,9 @@ export function App() {
                 <div style={{ marginTop: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
                     <h3 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>{product.name}</h3>
-                    <span style={{ fontSize: '15px', fontWeight: 500 }}>R$ {currentVariant.price.toFixed(2)}</span>
+                    <span style={{ fontSize: '15px', fontWeight: 500 }}>
+                      R$ {currentVariant ? currentVariant.price.toFixed(2) : product.basePrice.toFixed(2)}
+                    </span>
                   </div>
                   <p style={{ fontSize: '13px', color: '#666', margin: '0 0 14px 0', lineHeight: '1.4' }}>
                     {product.description}
@@ -300,9 +357,9 @@ export function App() {
                         onClick={() => handleSelectVariant(product.id, v)}
                         style={{
                           padding: '6px 12px',
-                          border: currentVariant.id === v.id ? '2px solid #111' : '1px solid #D1D1D1',
-                          backgroundColor: currentVariant.id === v.id ? '#111' : '#FFF',
-                          color: currentVariant.id === v.id ? '#FFF' : '#333',
+                          border: currentVariant?.id === v.id ? '2px solid #111' : '1px solid #D1D1D1',
+                          backgroundColor: currentVariant?.id === v.id ? '#111' : '#FFF',
+                          color: currentVariant?.id === v.id ? '#FFF' : '#333',
                           fontSize: '12px',
                           cursor: 'pointer',
                           borderRadius: '2px',
@@ -316,21 +373,20 @@ export function App() {
 
                   <button
                     onClick={() => addToCart(product)}
-                    disabled={currentVariant.availableStock === 0}
+                    disabled={!currentVariant || currentVariant.availableStock === 0}
                     style={{
                       width: '100%',
                       padding: '12px',
-                      backgroundColor: currentVariant.availableStock === 0 ? '#CCC' : '#111',
+                      backgroundColor: (!currentVariant || currentVariant.availableStock === 0) ? '#CCC' : '#111',
                       color: '#FFF',
                       border: 'none',
-                      cursor: currentVariant.availableStock === 0 ? 'not-allowed' : 'pointer',
+                      cursor: (!currentVariant || currentVariant.availableStock === 0) ? 'not-allowed' : 'pointer',
                       fontSize: '13px',
                       fontWeight: 600,
-                      letterSpacing: '0.5px',
-                      transition: 'background-color 0.2s'
+                      letterSpacing: '0.5px'
                     }}
                   >
-                    {currentVariant.availableStock === 0 ? 'Indisponível' : 'Adicionar à Sacola'}
+                    {(!currentVariant || currentVariant.availableStock === 0) ? 'Indisponível' : 'Adicionar à Sacola'}
                   </button>
                 </div>
               </div>
@@ -439,7 +495,6 @@ export function App() {
                     <span style={{ color: '#94A3B8' }}>Estado Atual:</span> <span style={{ color: '#4ADE80', fontWeight: 700 }}>{activeOrder.status}</span>
                   </div>
 
-                  {/* Controles da State Machine */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <span style={{ fontSize: '11px', color: '#94A3B8' }}>Transições Permitidas por Regra de Domínio:</span>
                     {activeOrder.status === 'AGUARDANDO_PAGAMENTO' && (
@@ -448,13 +503,13 @@ export function App() {
                           onClick={() => handleAdvanceStatus('PAGO')}
                           style={{ flex: 1, padding: '8px', backgroundColor: '#16A34A', color: '#FFF', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
                         >
-                          Aprovar Pagamento (Baixa definitiva)
+                          Aprovar Pagamento (Baixa)
                         </button>
                         <button
                           onClick={() => handleAdvanceStatus('CANCELADO')}
                           style={{ flex: 1, padding: '8px', backgroundColor: '#DC2626', color: '#FFF', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
                         >
-                          Cancelar Pedido (Liberar reserva)
+                          Cancelar (Liberar)
                         </button>
                       </div>
                     )}
@@ -463,7 +518,7 @@ export function App() {
                         onClick={() => handleAdvanceStatus('EM_SEPARACAO')}
                         style={{ padding: '8px', backgroundColor: '#2563EB', color: '#FFF', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
                       >
-                        Iniciar Separação na Expedição
+                        Iniciar Separação
                       </button>
                     )}
                     {activeOrder.status === 'EM_SEPARACAO' && (
@@ -479,16 +534,16 @@ export function App() {
                         onClick={() => handleAdvanceStatus('ENTREGUE')}
                         style={{ padding: '8px', backgroundColor: '#059669', color: '#FFF', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
                       >
-                        Confirmar Entrega (Estado Final)
+                        Confirmar Entrega (Final)
                       </button>
                     )}
-                    {(activeOrder.status === 'ENTREGUE' || activeOrder.status === 'CANCELADO') && (
+                    {(activeOrder.status === 'ENTREGUE' || activeOrder.status === 'CANCELADO' || activeOrder.status === 'EXPIRADO') && (
                       <p style={{ fontSize: '11px', color: '#94A3B8', margin: '8px 0 0 0' }}>Pedido em estado final ({activeOrder.status}). Nenhuma nova transição permitida.</p>
                     )}
                   </div>
                 </div>
               ) : (
-                <p style={{ fontSize: '12px', color: '#94A3B8' }}>Nenhum pedido ativo. Adicione itens ao carrinho e conclua o checkout para acompanhar o ciclo de vida.</p>
+                <p style={{ fontSize: '12px', color: '#94A3B8' }}>Nenhum pedido ativo. Adicione itens à sacola e finalize para ver o fluxo.</p>
               )}
             </div>
 
