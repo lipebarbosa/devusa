@@ -18,3 +18,4 @@ public interface InventoryRepository extends JpaRepository<InventoryItem, UUID> 
     @Query("SELECT i FROM InventoryItem i WHERE i.variantId = :variantId")
     Optional<InventoryItem> findByVariantIdForUpdate(@Param("variantId") UUID variantId);
 }
+

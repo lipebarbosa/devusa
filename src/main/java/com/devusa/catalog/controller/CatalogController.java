@@ -1,7 +1,6 @@
 package com.devusa.catalog.controller;
 
 import java.util.List;
-
 import com.devusa.catalog.dto.ProductDto;
 import com.devusa.catalog.service.CatalogService;
 import org.springframework.http.ResponseEntity;
@@ -34,3 +33,4 @@ public class CatalogController {
         return ResponseEntity.ok("Catálogo de demonstração populado com sucesso.");
     }
 }
+

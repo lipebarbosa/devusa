@@ -9,3 +9,4 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, UUID> {
     Optional<ProductVariant> findBySku(String sku);
 }
+

@@ -15,3 +15,4 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     @EntityGraph(attributePaths = {"category", "variants"})
     List<Product> findByActiveTrueAndCategorySlug(String categorySlug);
 }
+

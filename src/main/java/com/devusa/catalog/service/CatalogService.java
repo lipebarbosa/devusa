@@ -130,3 +130,4 @@ public class CatalogService {
 
     private record VariantSeed(String sku, String size, String color, int stock) {}
 }
+
