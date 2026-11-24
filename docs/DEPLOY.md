@@ -41,3 +41,4 @@ Este guia ensina como publicar o projeto **DevUsa** em links públicos gratuitos
 2. **O "System Inspector":** Clique no botão **"Abrir Modo Engenheiro (System Inspector)"** no topo.
 3. **Máquina de Estados ao Vivo:** Acompanhe o pedido passando por `AGUARDANDO_PAGAMENTO` → `PAGO` → `EM_SEPARACAO` → `ENVIADO` → `ENTREGUE`.
 4. **Garantias de Concorrência:** Explique como o Pessimistic Lock (`FOR UPDATE`) e a reserva temporária impedem estoque negativo ou vendas duplicadas.
+

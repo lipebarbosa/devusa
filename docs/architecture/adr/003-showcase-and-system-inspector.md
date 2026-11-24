@@ -26,3 +26,4 @@ Criar uma camada de frontend em **React + TypeScript + Vite** contendo um **Syst
 
 - O projeto passa a ser compreendido tanto por pessoas de negócios/design quanto por engenheiros seniores durante entrevistas técnicas.
 - Facilidade de deploy: o frontend pode ser hospedado estaticamente (Vercel / Cloudflare Pages) enquanto o backend Spring Boot roda em contêiner (Render / Railway / AWS).
+
