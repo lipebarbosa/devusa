@@ -1,4 +1,4 @@
-# DevUsa — Plataforma E-commerce & Showcase de Arquitetura
+# DevUsa — Plataforma E‑commerce & Showcase de Arquitetura
 
 [![Build & Test](https://github.com/SEU_USUARIO/devusa/actions/workflows/ci.yml/badge.svg)](https://github.com/SEU_USUARIO/devusa/actions)
 ![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
@@ -7,25 +7,23 @@
 ![React](https://img.shields.io/badge/Frontend-React%20%2B%20TypeScript-61DAFB?logo=react)
 ![Architecture](https://img.shields.io/badge/Architecture-Modular%20Monolith-blueviolet)
 
-> Plataforma completa de comércio eletrônico de moda desenvolvida como **projeto de portfólio de engenharia de software**. Combina uma experiência visual minimalista de e-commerce contemporâneo com um **System Inspector ("Modo Engenheiro")** integrado que expõe em tempo real o funcionamento dos Bounded Contexts, concorrência de estoque e máquina de estados.
+> Plataforma completa de comércio eletrônico de moda desenvolvida como **projeto de portfólio de engenharia de software**. combina experiência visual minimalista com um **System Inspector ("Modo Engenheiro")** que mostra em tempo real o funcionamento dos Bounded Contexts, concorrência de estoque e máquina de estados.
 
 ---
 
 ## 🏛️ Visão Geral da Arquitetura
 
-O projeto foi construído sobre o padrão **Monólito Modular**, garantindo alto desacoplamento e isolamento de domínio com validação contínua via **ArchUnit**:
+O projeto segue o padrão **Monólito Modular** com validação contínua via **ArchUnit**:
 
 ```mermaid
 graph TD
     Client["Frontend (React + Vite)"] --> Gateway["API Gateway / Security Filter (JWT Stateless)"]
-    
     subgraph "Monólito Modular (Spring Boot 3 / Java 21)"
-        Gateway --> Identity["Identity Context\n(Auth, Roles, Refresh Token SHA-256)"]
+        Gateway --> Identity["Identity Context\n(Auth, Roles, Refresh Token SHA‑256)"]
         Gateway --> Catalog["Catalog Context\n(Products, Categories, SKUs)"]
-        Gateway --> Inventory["Inventory Context\n(Lock Pessimista & Version Otimista)"]
-        Gateway --> Order["Order Context\n(Hexagonal & Finite State Machine)"]
+        Gateway --> Inventory["Inventory Context\n(Lock Pessimista & Versão Otimista)"]
+        Gateway --> Order["Order Context\n(Hexagonal & FSM)"]
     end
-    
     Identity --> DB[(PostgreSQL 18)]
     Catalog --> DB
     Inventory --> DB
@@ -36,20 +34,11 @@ graph TD
 
 ## 🔑 Diferenciais Técnicos Implementados
 
-1. **Controle Estrito de Concorrência no Estoque:**
-   - Reserva de estoque atômica com lock pessimista (`SELECT ... FOR UPDATE`) e controle otimista via `@Version`.
-   - Garantia formal de que o estoque disponível nunca fica negativo, mesmo sob alta concorrência de checkout.
-2. **Máquina de Estados Finita (Order FSM):**
-   - Estados: `AGUARDANDO_PAGAMENTO` → `PAGO` → `EM_SEPARACAO` → `ENVIADO` → `ENTREGUE` (com saídas controladas `CANCELADO` e `EXPIRADO`).
-   - Validação estrita de transição no modelo de domínio puro (`OrderStatus.canTransitionTo`).
-3. **Segurança & Tokens:**
-   - Access tokens JWT stateless de curta duração (15 minutos).
-   - Refresh tokens persistidos no banco de dados com **hashing SHA-256** e **rotação obrigatória** a cada renovação para combater replay attacks.
-   - RBAC granular (`CLIENTE`, `GERENTE`, `ESTOQUE`, `EXPEDICAO`).
-4. **Idempotência no Checkout:**
-   - Cabeçalho / campo `idempotencyKey` obrigatório na finalização de compra para evitar pedidos duplicados por múltiplos cliques.
-5. **System Inspector ("Modo Engenheiro"):**
-   - Gaveta flutuante no frontend que permite a qualquer recrutador ou avaliador acompanhar o log de eventos de domínio e acionar transições de estados ao vivo.
+1. **Controle Estrito de Concorrência no Estoque** – reserva atômica com lock pessimista (`SELECT … FOR UPDATE`) e controle otimista via `@Version`.
+2. **Máquina de Estados Finita (Order FSM)** – transições validadas (`AGUARDANDO_PAGAMENTO → PAGO → EM_SEPARACAO → ENVIADO → ENTREGUE`).
+3. **Segurança & Tokens** – JWT de curta duração (15 min) + refresh tokens persistidos com hashing SHA‑256 e rotação obrigatória.
+4. **Idempotência no Checkout** – cabeçalho `Idempotency-Key` obrigatório.
+5. **System Inspector ("Modo Engenheiro")** – painel flutuante que exibe logs de eventos e permite acionar transições de estado ao vivo.
 
 ---
 
@@ -57,52 +46,69 @@ graph TD
 
 ```text
 com.devusa/
-├── identity/       # Autenticação, usuários, JWT, rotação de refresh token e RBAC
-├── catalog/        # Produtos, categorias, variações (tamanho/cor), SKUs e precificação
-├── inventory/      # Itens de estoque, reservas temporárias e controle de concorrência
-├── order/          # Pedidos, itens de compra, máquina de estados e fluxo de checkout
-└── shared/         # Value objects e utilitários transversais
+├── identity/   # Autenticação, usuários, JWT, RBAC
+├── catalog/    # Produtos, categorias, SKUs, precificação
+├── inventory/  # Reservas de estoque, concorrência
+├── order/      # Pedidos, FSM, checkout
+└── shared/     # Value objects e utilitários
 ```
 
 ---
 
-## 🚀 Como Executar Localmente
+## 🚀 Deploy em Produção
 
-### Pré-requisitos
-* Java 21 (JDK 21)
-* Node.js 20+
-* Docker & Docker Compose (opcional para rodar com Postgres local)
+### Backend – Render
+- O serviço está disponível em: `https://devusa-api.onrender.com`
+- Configurado via `render.yaml` (inclui banco PostgreSQL gratuito, variáveis de ambiente `SPRING_DATASOURCE_*`, `SECURITY_JWT_SECRET` e `APP_CORS_ALLOWED_ORIGINS`).
+- **Health check:** `GET https://devusa-api.onrender.com/actuator/health`
+- **Seed do catálogo (uma única vez):**
+  ```bash
+  curl -X POST https://devusa-api.onrender.com/api/v1/catalog/seed
+  ```
 
-### 1. Iniciar o Backend
-```powershell
-# Subir o banco Postgres via Docker
+### Frontend – Vercel
+- URL pública: **https://devusa.vercel.app/**
+- A variável de ambiente `VITE_API_URL` está apontando para o backend Render.
+- O build usa `npm run build` (Vite) e o artefato é servido a partir de `dist/`.
+
+---
+
+## 💻 Como Executar Localmente
+
+### Pré‑requisitos
+- Java 21 (JDK 21)
+- Node.js 20+
+- Docker & Docker‑Compose (opcional para PostgreSQL local)
+
+### Backend
+```bash
+# Subir banco local (Docker)
 docker compose up -d postgres
-
 # Executar a aplicação Spring Boot
 ./mvnw spring-boot:run
 ```
-*A API estará disponível em `http://localhost:8080` com Flyway executando as migrações automaticamente.*
+API disponível em `http://localhost:8080`.
 
-### 2. Iniciar o Frontend
-```powershell
+### Frontend
+```bash
 cd frontend
 npm install
 npm run dev
 ```
-*Acesse no navegador: `http://localhost:5173`.*
+Acesse `http://localhost:5173`.
 
 ---
 
 ## 🧪 Suíte de Testes Automatizados
-```powershell
+```bash
 ./mvnw clean test
 ```
-* Inclui testes de máquina de estados, regras de concorrência de inventário, hashing e rotação de tokens, além de verificação de governança modular com **ArchUnit**.
+Inclui testes de FSM, concorrência de estoque, hashing/rotação de tokens e validação modular com **ArchUnit**.
 
 ---
 
 ## 📑 Decisões de Arquitetura (ADRs)
-* [ADR 001 — Monólito Modular como Arquitetura Inicial](docs/architecture/adr/001-modular-monolith.md)
-* [ADR 002 — Estratégia de Tokens JWT e Refresh Token com Rotação](docs/architecture/adr/002-token-strategy.md)
-* [ADR 003 — Vitrine Fullstack e System Inspector para Portfólio](docs/architecture/adr/003-showcase-and-system-inspector.md)
-* [Guia de Deploy em Produção (Render + Vercel)](docs/DEPLOY.md)
+- [ADR 001 — Monólito Modular como Arquitetura Inicial](docs/architecture/adr/001-modular-monolith.md)
+- [ADR 002 — Estratégia de Tokens JWT e Refresh Token com Rotação](docs/architecture/adr/002-token-strategy.md)
+- [ADR 003 — Vitrine Fullstack e System Inspector para Portfólio](docs/architecture/adr/003-showcase-and-system-inspector.md)
+- [Guia de Deploy em Produção (Render + Vercel)](docs/DEPLOY.md)
