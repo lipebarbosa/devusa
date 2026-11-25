@@ -1,0 +1,38 @@
+databases:
+  - name: devusa-db
+    databaseName: devusa
+    user: devusa
+    plan: free
+
+services:
+  - type: web
+    name: devusa-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: devusa-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: devusa-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: devusa-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: devusa-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: devusa-db
+          property: password
+      - key: SECURITY_JWT_SECRET
+        generateValue: true
+      - key: APP_CORS_ALLOWED_ORIGINS
+        value: http://localhost:5173,https://*.vercel.app
+

@@ -1,12 +1,15 @@
+server:
+  port: ${PORT:8080}
+
 spring:
   application:
     name: devusa
   config:
     import: optional:file:.env[.properties]
   datasource:
-    url: jdbc:postgresql://localhost:${DB_PORT:5432}/${DB_NAME}
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:devusa}
+    username: ${DB_USER:devusa}
+    password: ${DB_PASSWORD:devusa_password}
   jpa:
     hibernate:
       ddl-auto: validate
