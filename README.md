@@ -1,6 +1,6 @@
 # DevUsa — Plataforma E-commerce & Showcase de Arquitetura
 
-[![Build & Test](https://github.com/SEU_USUARIO/devusa/actions/workflows/ci.yml/badge.svg)](https://github.com/SEU_USUARIO/devusa/actions)
+[![Build & Test](https://github.com/lipebarbosa/devusa/actions/workflows/ci.yml/badge.svg)](https://github.com/SEU_USUARIO/devusa/actions)
 ![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen?logo=springboot)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-blue?logo=postgresql)
