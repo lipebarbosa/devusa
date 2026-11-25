@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Product, Variant, CartItem, Order, SystemEvent, OrderStatus } from './types';
 import { api } from './api';
+import { RoadmapView } from './RoadmapView';
 import { 
   ShoppingBag, 
   Terminal, 
@@ -81,6 +82,8 @@ export function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'store' | 'roadmap'>('store');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [systemEvents, setSystemEvents] = useState<SystemEvent[]>([
     {
@@ -278,10 +281,50 @@ export function App() {
           DEVUSA <span style={{ fontSize: '11px', fontWeight: 400, letterSpacing: '2px', color: '#777', textTransform: 'uppercase' }}>Estúdio & Alfaiataria</span>
         </div>
         <nav style={{ display: 'flex', gap: '32px', fontSize: '14px', fontWeight: 500 }}>
-          <span style={{ cursor: 'pointer', borderBottom: '2px solid #111', paddingBottom: '4px' }}>Coleção Atual</span>
-          <span style={{ cursor: 'pointer', color: '#777' }}>Alfaiataria</span>
-          <span style={{ cursor: 'pointer', color: '#777' }}>Outerwear</span>
-          <span style={{ cursor: 'pointer', color: '#777' }}>Sobre o Projeto</span>
+          <span
+            onClick={() => { setActiveTab('store'); setCategoryFilter('all'); }}
+            style={{
+              cursor: 'pointer',
+              color: activeTab === 'store' && categoryFilter === 'all' ? '#111' : '#777',
+              borderBottom: activeTab === 'store' && categoryFilter === 'all' ? '2px solid #111' : 'none',
+              paddingBottom: '4px'
+            }}
+          >
+            Coleção Atual
+          </span>
+          <span
+            onClick={() => { setActiveTab('store'); setCategoryFilter('alfaiataria'); }}
+            style={{
+              cursor: 'pointer',
+              color: activeTab === 'store' && categoryFilter === 'alfaiataria' ? '#111' : '#777',
+              borderBottom: activeTab === 'store' && categoryFilter === 'alfaiataria' ? '2px solid #111' : 'none',
+              paddingBottom: '4px'
+            }}
+          >
+            Alfaiataria
+          </span>
+          <span
+            onClick={() => { setActiveTab('store'); setCategoryFilter('outerwear'); }}
+            style={{
+              cursor: 'pointer',
+              color: activeTab === 'store' && categoryFilter === 'outerwear' ? '#111' : '#777',
+              borderBottom: activeTab === 'store' && categoryFilter === 'outerwear' ? '2px solid #111' : 'none',
+              paddingBottom: '4px'
+            }}
+          >
+            Outerwear
+          </span>
+          <span
+            onClick={() => setActiveTab('roadmap')}
+            style={{
+              cursor: 'pointer',
+              color: activeTab === 'roadmap' ? '#111' : '#777',
+              borderBottom: activeTab === 'roadmap' ? '2px solid #111' : 'none',
+              paddingBottom: '4px'
+            }}
+          >
+            Arquitetura & Roadmap
+          </span>
         </nav>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <button
@@ -303,7 +346,10 @@ export function App() {
         </div>
       </header>
 
-      {/* Catalog Hero */}
+      {activeTab === 'roadmap' ? (
+        <RoadmapView onBackToStore={() => setActiveTab('store')} />
+      ) : (
+      /* Catalog Hero */
       <section style={{ padding: '64px 48px 32px 48px', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
         <div style={{ marginBottom: '48px' }}>
           <p style={{ fontSize: '12px', letterSpacing: '3px', textTransform: 'uppercase', color: '#888', marginBottom: '8px' }}>
@@ -316,7 +362,9 @@ export function App() {
 
         {/* Product Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '40px' }}>
-          {products.map(product => {
+          {products
+            .filter(p => categoryFilter === 'all' || p.categorySlug === categoryFilter)
+            .map(product => {
             const currentVariant = selectedVariants[product.id] || product.variants[0];
             return (
               <div key={product.id} style={{ display: 'flex', flexDirection: 'column' }}>
@@ -394,6 +442,7 @@ export function App() {
           })}
         </div>
       </section>
+      )}
 
       {/* Cart Drawer */}
       {isCartOpen && (

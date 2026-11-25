@@ -1,6 +1,7 @@
 import type { Product, Order, OrderStatus } from './types';
 
-const API_BASE = '/api/v1';
+const API_HOST = import.meta.env.VITE_API_URL ? String(import.meta.env.VITE_API_URL).replace(/\/$/, '') : '';
+const API_BASE = `${API_HOST}/api/v1`;
 
 export const api = {
   async getProducts(): Promise<Product[] | null> {
